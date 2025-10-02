@@ -4,4 +4,4 @@ mympicc programma.c
 Eseguire:
 mpiexec -np 2 programma
 
-con -np numero di processi da lanciares
+con -np numero di processi da lanciare

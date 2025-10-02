@@ -26,12 +26,12 @@ int main(int argc, char **argv){
 	  /*creazione del vettore contenente numeri casuali */
 	  *(vett+i)=(int)rand()%5-2;
 	}
-		
-   	// Stampa del vettore che contiene i dati da sommare, se sono meno di 100 
-	if (n<100){
-	  for (i=0; i<n; i++){
-			printf("\nvett[%d]=%d ",i,*(vett+i));
-	  }
+  
+	// Stampa del vettore che contiene i dati da sommare, se sono meno di 100 
+  if(n<100){
+    for(i=0; i<n; i++){
+      printf("\nvett[%d]=%d ",i,*(vett+i));
+    }
   }
 
   T_inizio = MPI_Wtime();
