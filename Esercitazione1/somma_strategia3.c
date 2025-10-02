@@ -17,8 +17,8 @@ int main(int argc, char **argv){
     // indice, log_2(nproc), resto, invio a, ricevo da, variabile temporanea
     int ind, p, r, sendTo, recvBy, tmp; 
     // vettore potenze di 2, vettore globale, vettore locale, numero passi
-    int *potenze, *vett, *vett_loc, passi=0; 
-    int sommaloc=0;
+    int *potenze, *vett, *vett_loc, passi = 0; 
+    int sommaloc = 0;
     double T_inizio, T_fine, T_max;
 
     MPI_Status info;
@@ -46,9 +46,8 @@ int main(int argc, char **argv){
     MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     // Numero di addendi da assegnare a ciascun processore
-    nlocgen=n/nproc;
-    // Resto della divisione
-    resto=n%nproc;
+    nlocgen=n/nproc; // Divisione intera  
+    resto=n%nproc; // Resto della divisione
 
     // Se resto è non nullo, i primi processi ricevono un addendo in più
     if(menum < resto){
@@ -61,26 +60,26 @@ int main(int argc, char **argv){
     vett_loc=(int*)calloc(nloc, sizeof(int));
 
     /* 
-    Il primo processore (menum==0) inizializza il vettore con i numeri casuali e distribuisce i vettori locali agli altri processori.
-    Gli altri processori (menum!=0) ricevono il vettore locale dal processore 0.
+    Il primo processore P0 (menum==0) inizializza il vettore con i numeri casuali e distribuisce i vettori locali agli altri processori.
+    Gli altri processori (menum!=0) ricevono il vettore locale da P0.
     */
     if (menum==0)
     {
-        /*Inizializza la generazione random degli addendi utilizzando l'ora attuale del sistema*/                
+        // Inizializza la generazione random degli addendi utilizzando l'ora attuale del sistema           
         srand((unsigned int) time(0)); 
 		
         for(i=0; i<n; i++)
 		{
-			/*creazione del vettore contenente numeri casuali */
-			*(vett+i)=(int)rand()%5-2;
+			// creazione del vettore contenente numeri casuali 
+			*(vett+i) = (int)rand()%5-2;
 		}
 		
    		// Stampa del vettore che contiene i dati da sommare, se sono meno di 100 
-		if (n<100)
+		if (n < 100)
 		{
 			for (i=0; i<n; i++)
 			{
-				printf("\n vett[%d] = %d ", i, *(vett+i));
+				printf("\nvett[%d] = %d ", i, *(vett+i));
 			}
         }
 
@@ -91,7 +90,7 @@ int main(int argc, char **argv){
 		}
 
         // ind è il numero di addendi già assegnati     
-		ind=nloc;
+		ind = nloc;
 
         for(i = 1; i < nproc; i++)
 		{
@@ -131,7 +130,7 @@ int main(int argc, char **argv){
     p = nproc;
 
     while(p != 1) {
-        p = p>>1;
+        p = p>>1; // shift
         passi++;
     }   
     
@@ -169,10 +168,10 @@ int main(int argc, char **argv){
     MPI_Barrier(MPI_COMM_WORLD); // sincronizzazione
 	T_fine = MPI_Wtime()-T_inizio; // calcolo del tempo di fine
 
-    /* calcolo del tempo totale di esecuzione*/
+    // calcolo del tempo totale di esecuzione
 	MPI_Reduce(&T_fine,&T_max,1,MPI_DOUBLE,MPI_MAX,0,MPI_COMM_WORLD);
 
-    /*stampa a video dei risultati finali*/
+    // stampa a video dei risultati finali
 	if(menum == 0)
 	{
 		printf("\nProcessori impegnati: %d\n", nproc);
