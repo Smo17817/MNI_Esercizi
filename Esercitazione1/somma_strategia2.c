@@ -63,8 +63,6 @@ int main (int argc, char **argv)
 	/*invio del valore di n a tutti i processori appartenenti a MPI_COMM_WORLD*/
 	MPI_Bcast(&n,1,MPI_INT,0,MPI_COMM_WORLD);
 
-	
-    
     /*numero di addendi da assegnare a ciascun processore*/
 	nlocgen=n/nproc; // divisione intera
 	
