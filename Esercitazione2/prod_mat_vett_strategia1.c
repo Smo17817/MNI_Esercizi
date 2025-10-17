@@ -41,8 +41,7 @@ int main(int argc, char **argv) {
     MPI_Comm_rank (MPI_COMM_WORLD, &me);
 
     // Se il processore è il root
-    if(me == 0)
-    {
+    if(me == 0) {
         printf("inserire numero di righe m: "); 
         fflush(stdout);
         scanf("%d",&m); 
