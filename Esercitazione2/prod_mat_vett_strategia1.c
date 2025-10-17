@@ -43,11 +43,11 @@ int main(int argc, char **argv) {
     // Se il processore è il root
     if(me == 0)
     {
-        printf("inserire numero di righe m = \n"); 
+        printf("inserire numero di righe m: "); 
         fflush(stdout);
         scanf("%d",&m); 
         
-        printf("inserire numero di colonne n = \n"); 
+        printf("inserire numero di colonne n: "); 
         fflush(stdout);
         scanf("%d",&n);
 
@@ -59,9 +59,11 @@ int main(int argc, char **argv) {
         v = malloc(sizeof(double)*n);
         w =  malloc(sizeof(double)*m); 
         
+        // Inizializza vettore con valori 0,1,2,...
         for (j=0;j<n;j++)
                 v[j]=j; 
 
+        // Inizializza matrice A
         for (i=0;i<m;i++) {
             for(j=0;j<n;j++) {
                 if (j==0)
@@ -73,12 +75,12 @@ int main(int argc, char **argv) {
         
         // Stampa matrice e vettore se piccoli
         if (n < 11 && m < 11){  
-            printf("v = \n");   
+            printf("Vettore v: ");   
                 for (j=0;j<n;j++)
                     printf("%f ", v[j]);
                 printf("\n");
         
-            printf("A = \n"); 
+            printf("Matrice A\n"); 
             for (i=0;i<m;i++) {
                 for(j=0;j<n;j++)
                         printf("%f ", A[i*n+j] );
@@ -114,7 +116,7 @@ int main(int argc, char **argv) {
     // Scriviamo la matrice locale ricevuta
     if (n<11 && m<11)
     {
-        printf("localA %d = \n", me); 
+        printf("localA %d\n", me); 
         for(i = 0; i < local_m; i++){
             for(j = 0; j < n; j++)
                 printf("%lf\t", localA[i*n+j]);
@@ -131,7 +133,7 @@ int main(int argc, char **argv) {
     // 0 stampa la soluzione
     if(me==0) { 
         if (n<11 && m<11) {
-            printf("w = \n"); 
+            printf("w:"); 
             for(i = 0; i < m; i++)
                 printf("%f ", w[i]);
             printf("\n");
