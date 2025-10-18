@@ -126,11 +126,10 @@ int main (int argc, char **argv)
 		sommaloc = sommaloc+*(vett_loc+i);
 	}
 
-	//  calcolo di p=log_2 (nproc) attraverso uno shift a destra bit a bit
+	// calcolo di p=log_2 (nproc) attraverso uno shift a destra bit a bit
 	p = nproc;
 
-	while(p!=1)
-	{
+	while(p!=1) {
 		p = p>>1; //shift
 		passi++;
 	}
@@ -143,8 +142,7 @@ int main (int argc, char **argv)
 	}
 
 	// Calcolo delle altre somme parziali e combinazione dei risultati parziali
-	for(i=0;i<passi;i++)
-	{
+	for(i=0;i<passi;i++){
 		// Calcolo identificativo del processore: resto(menum, 2^(k+1))
 		r=menum%potenze[i+1];
 		

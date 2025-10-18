@@ -29,7 +29,13 @@ int main(int argc, char **argv) {
     int local_m; // Dimensione dei dati locali
     int i,j; // Iteratori vari 
 
-    // Variabili di lavoro
+    /*
+    A: matrice m x n
+    v: vettore di dimensione n
+    localA: parte di matrice locale di dimensione m x local_n
+    local_w: vettore locale di dimensione m
+    w: vettore risultato di dimensione m
+    */
     double *A, *v, *localA,*local_w, *w;
 
 
