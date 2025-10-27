@@ -97,10 +97,6 @@ int main(int argc, char **argv) {
 
     fflush(stdout);
 
-    // sincronizzazione dei processori del contesto MPI_COMM_WORLD
-	MPI_Barrier(MPI_COMM_WORLD); // sincronizzazione
-	T_inizio=MPI_Wtime(); // calcolo del tempo di inizio
-
     // Spedisco m, n, local_m e v
     MPI_Bcast(&m,1,MPI_INT,0,MPI_COMM_WORLD);  
     MPI_Bcast(&n,1,MPI_INT,0,MPI_COMM_WORLD);            
@@ -133,6 +129,10 @@ int main(int argc, char **argv) {
             printf("\n");
         }
     }
+
+    // sincronizzazione dei processori del contesto MPI_COMM_WORLD
+	MPI_Barrier(MPI_COMM_WORLD); // sincronizzazione
+	T_inizio=MPI_Wtime(); // calcolo del tempo di inizio
 
     // Effettuiamo i calcoli
     prod_mat_vett(local_w, localA, local_m, n, v);
