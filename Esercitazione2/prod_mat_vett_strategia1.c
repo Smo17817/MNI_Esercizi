@@ -28,6 +28,7 @@ int main(int argc, char **argv) {
     int m,n; // Dimensione della matrice
     int local_m; // Dimensione dei dati locali
     int i,j; // Iteratori vari 
+    double T_inizio,T_fine;
 
     /*
     A: matrice m x n
@@ -96,6 +97,10 @@ int main(int argc, char **argv) {
 
     fflush(stdout);
 
+    // sincronizzazione dei processori del contesto MPI_COMM_WORLD
+	MPI_Barrier(MPI_COMM_WORLD); // sincronizzazione
+	T_inizio=MPI_Wtime(); // calcolo del tempo di inizio
+
     // Spedisco m, n, local_m e v
     MPI_Bcast(&m,1,MPI_INT,0,MPI_COMM_WORLD);  
     MPI_Bcast(&n,1,MPI_INT,0,MPI_COMM_WORLD);            
@@ -131,7 +136,11 @@ int main(int argc, char **argv) {
 
     // Effettuiamo i calcoli
     prod_mat_vett(local_w, localA, local_m, n, v);
-        
+
+    // Calcolo del tempo pdi fine prima della Gather
+    MPI_Barrier(MPI_COMM_WORLD); // sincronizzazione
+	T_fine = MPI_Wtime()-T_inizio; // calcolo del tempo di fine
+
     // 0 raccoglie i risultati parziali
     MPI_Gather(&local_w[0],local_m,MPI_DOUBLE,&w[0],local_m,MPI_DOUBLE,0,MPI_COMM_WORLD);
 
@@ -143,6 +152,9 @@ int main(int argc, char **argv) {
                 printf("%f ", w[i]);
             printf("\n");
         }
+
+        printf("\nProcessori impegnati: %d\n", nproc);
+		printf("\nTempo calcolo locale: %lf\n", T_fine);
     }
 
     MPI_Finalize ();
