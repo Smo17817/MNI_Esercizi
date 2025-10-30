@@ -1,3 +1,11 @@
+/*
+Implementazione del prodotto matrice vettore utilizzando la strategia 3: 
+ogni processo riceve un blocco di righe e di colonne della matrice 
+e una parte del vettore della stessa dimensione del numero di colonne.
+Viene infine calcola il prodotto, prima localmente e poi globalmente.
+
+*/
+
 #include<stdio.h>
 #include<stdlib.h>
 #include<math.h>
@@ -7,14 +15,14 @@
 
 // Funzione per calcolare la griglia ottimale
 void optimal_grid(int nproc, int rows, int cols, int dim, int *ndim, int verbose);
-void prod_mat_trasv_vett_distr(double w[], double *AT, int m, int n, double v[], int verbose);
+void prod_mat_trasv_vett(double *w, double *AT, int m, int n, double *v, int verbose);
+void prod_mat_trasv_vett_distr(double *w, double *AT, int m, int n, double *v, MPI_Comm comm, int verbose);
 
 int main(int argc, char *argv[]) {
     int nproc; // Numero di processi totale
-    int me; // Il mio id
+    int me; // id del processore corrente
     int m, n; // Dimensione della matrice
-    int local_n, local_m; // Dimensione dei dati locali
-    int i, j; // Iteratori vari 
+    int local_m, local_n; // Dimensione dei dati locali
     double T_inizio, T_fine, T_max;
 
     /*
@@ -31,7 +39,8 @@ int main(int argc, char *argv[]) {
     
     // definizione della griglia
     MPI_Comm comm_grid;
-    int dim = 2, *ndim, reorder, *period;
+    int dim = 2, reorder, *period;
+    int *ndim = malloc(dim * sizeof(int));
     int coordinate[2];
     int menum_grid; // id del processo nella griglia
 
@@ -50,14 +59,19 @@ int main(int argc, char *argv[]) {
         A = malloc(m * n * sizeof(double));
         v = malloc(n * sizeof(double));
         w = malloc(m * sizeof(double)); 
+
+        // Calcolo la griglia ottimale
+        optimal_grid(nproc, m, n, dim, ndim, false);
+        local_m = m/ndim[0]; // numero di righe locale matrice
+        local_n = n/ndim[1]; // numero di colonne locale matrice e dimensione locale del vettore
         
         // Inizializza vettore con valori 0,1,2,...
-        for (j=0;j<n;j++)
+        for (int j=0; j<n; j++)
                 v[j]=j; 
 
         // Inizializza matrice A
-        for (i=0;i<m;i++) {
-            for(j=0;j<n;j++) {
+        for (int i=0; i<m; i++) {
+            for(int j=0;j<n;j++) {
                 if (j==0)
                     A[i*n+j]= 1.0/(i+1)-1;
                 else
@@ -68,13 +82,13 @@ int main(int argc, char *argv[]) {
         // Stampa matrice e vettore se piccoli
         if (n < 11 && m < 11){  
             printf("Vettore v: ");   
-                for (j=0;j<n;j++)
+                for (int j=0; j<n; j++)
                     printf("%.4f ", v[j]);
                 printf("\n");
         
             printf("Matrice A\n"); 
-            for (i=0;i<m;i++) {
-                for(j=0;j<n;j++)
+            for (int i=0; i<m; i++) {
+                for(int j=0; j<n; j++)
                     printf("%.4f ", A[i*n+j] );
                 printf("\n");
             }
@@ -85,23 +99,16 @@ int main(int argc, char *argv[]) {
 
     fflush(stdout);
 
-    // Spedisco m, n, local_n da P0 a tutti i processi
+    // Spedisco m, n, local_n, local_m e ndim da P0 a tutti i processi
     MPI_Bcast(&m, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&local_n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&local_m, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(ndim, dim, MPI_INT, 0, MPI_COMM_WORLD);
 
     /*--- Creazione Contesto ---*/
-    // vettore contenente le lunghezze di ciascuna dimensione
-    ndim = (int*)calloc(dim, sizeof(int));
-
-    // Calcolo la griglia ottimale
-    optimal_grid(nproc, m, n, dim, ndim, false);
-    local_n = n/ndim[1]; // dimensione locale del vettore
-
-    // Ogni processo alloca local_v
-    local_v = malloc(local_n * sizeof(double));
-
     // vettore contenente la periodicità delle dimensioni. In questo caso non periodica
-    period = (int*)calloc(dim,sizeof(int));
+    period = malloc(dim * sizeof(int));
     period[0] = period[1] = 0;
     reorder = 0;
 
@@ -120,6 +127,9 @@ int main(int argc, char *argv[]) {
     MPI_Cart_sub(comm_grid, keep_cols, &col_comm);
 
     /*--- Invio del vettore v a tutti i processi ---*/
+    // Ogni processo alloca local_v
+    local_v = malloc(local_n * sizeof(double));
+
     // Fase 1: processi della prima riga
     if(coordinate[0] == 0) {
         MPI_Scatter(v, local_n, MPI_DOUBLE, 
@@ -133,7 +143,6 @@ int main(int argc, char *argv[]) {
     
     /*--- Invio della Matrice A ad ogni processo ---*/
     // Fase 1: P00 invia blocchi di rhighe ai processi della prima colonna
-    local_m = m/ndim[0]; // numero di righe locale
     localA = malloc(local_m * n * sizeof(double)); // ogni processo alloca localA
     if(coordinate[1] == 0) {
         MPI_Scatter(A, local_m * n, MPI_DOUBLE,
@@ -151,6 +160,7 @@ int main(int argc, char *argv[]) {
     }
 
     finalAT = malloc(local_m * local_n * sizeof(double));
+
     // In ogni colonna il processo root ha rank 0
     MPI_Scatter(localAT, local_m * local_n, MPI_DOUBLE,
         finalAT, local_m * local_n, MPI_DOUBLE,
@@ -183,21 +193,21 @@ int main(int argc, char *argv[]) {
 
     /* --- PRODOTTO MATRICE VETTORE --- */
     // ogni processo calcola il pezzo di w relativo alle sue local_m e local_n
-    prod_mat_trasv_vett_distr(local_w, finalAT, local_m, local_n, local_v, true);
+    prod_mat_trasv_vett_distr(local_w, finalAT, local_m, local_n, local_v, row_comm, true);
 
-    // si esegue la riduzione lungo le righe della griglia
-    // ogni processo della riga invia il proprio local_w al processo root della riga
-    double *row_sum = NULL;
+    /* Strategia alternativa con riduzione
+    double *row_sum;
     if (coordinate[1] == 0) {
-        row_sum = (double*)malloc(local_m * sizeof(double));
+        row_sum = malloc(local_m * sizeof(double));
     }
 
-    MPI_Reduce(local_w, row_sum, local_m, MPI_DOUBLE, MPI_SUM, 0, row_comm);
+    MPI_Reduce(local_w, local_w, local_m, MPI_DOUBLE, MPI_SUM, 0, row_comm);
+    */
 
-    // si esegue il gather lungo le colonne della griglia
+    /* --- Gather dei processi della prima riga --- */
     // partecipano solo i processi root di ogni riga, che presentano le soluzioni parziali
     if (coordinate[1] == 0) {
-        MPI_Gather(row_sum, local_m, MPI_DOUBLE,
+        MPI_Gather(local_w, local_m, MPI_DOUBLE,
                 w, local_m, MPI_DOUBLE,
                 0, col_comm); // il processo P00 raccoglie il risultato finale
     }
@@ -216,7 +226,7 @@ int main(int argc, char *argv[]) {
 
         if (n < 11 && m < 11) {
             printf("\nRisultato finale w: ");
-            for (i = 0; i < m; i++) printf("%.4f ", w[i]);
+            for (int i = 0; i < m; i++) printf("%.4f ", w[i]);
             printf("\n");
         }
     }
@@ -263,32 +273,86 @@ void optimal_grid(int nproc, int rows, int cols, int dim, int *ndim, int verbose
         printf("Griglia ottimale: %d x %d\n", ndim[0], ndim[1]);
 }
 
-void prod_mat_trasv_vett_distr(double w[], double *AT, int m, int n, double v[], int verbose) {
-    int i, j;
-    int me, nproc;
-    int tag, sendTo, recvBy;
-    int p, resto, *potenze, passi = 0;
-    MPI_Status info;
+void prod_mat_trasv_vett(double *w, double *AT, int m, int n, double *v, int verbose) {
 
-    MPI_Comm_rank(MPI_COMM_WORLD, &me);
-    MPI_Comm_size(MPI_COMM_WORLD, &nproc);
-
-    // Inizializzazione del vettore risultato locale
-    for (i = 0; i < m; i++) 
-        w[i] = 0.0;
-
-    // esecuzione del prodotto locale
-    for (i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++) {
         double vi = v[i]; // elemento corrispondente del blocco di vettore
-        for (j = 0; j < m; j++) {
+        for (int j = 0; j < m; j++) {
             w[j] += AT[i * m + j] * vi;
         }
     }
 
     if(verbose && n < 11 && m < 11){ 
         printf("local_w: ");
-        for (i = 0; i < m; i++) 
-            printf("%.2f ", w[i]);
+        for (int i = 0; i < m; i++) 
+            printf("%.4f ", w[i]);
+        printf("\n");
+    }
+}
+
+void prod_mat_trasv_vett_distr(double *w, double *AT, int m, int n, double *v, MPI_Comm comm, int verbose) {
+    int me, nproc;
+    int tag, sendTo, recvBy;
+    int p, resto, *potenze, passi = 0;
+    MPI_Status info;
+
+    MPI_Comm_rank(comm, &me);
+    MPI_Comm_size(comm, &nproc);
+
+    for (int i = 0; i < n; i++) {
+        double vi = v[i]; // elemento corrispondente del blocco di vettore
+        for (int j = 0; j < m; j++) {
+            w[j] += AT[i * m + j] * vi;
+        }
+    }
+
+    /* SOMMA STRATEGIA 2 */
+    // vettore temporaneo per ricezione dati
+    double *tmp = (double *) malloc(m * sizeof(double));
+
+    // calcolo di p=log_2 (nproc) attraverso uno shift a destra bit a bit
+	p = nproc;
+
+	while(p!=1) {
+		p = p>>1; //shift
+		passi++;
+	}
+
+	// creazione del vettore potenze, che contiene le potenze di 2
+	potenze=(int*)calloc(passi+1,sizeof(int));
+		
+	for(int i = 0; i <= passi; i++) {
+		potenze[i] = p<<i;
+	}
+
+    for(int i = 0; i < passi; i++){
+        // Calcolo identificativo del processore: resto(me, 2^(k+1))
+        resto = me % potenze[i+1];
+
+        // Se il resto(me, 2^(k+1))= 2^k, il processore me invia
+        if (resto == potenze[i]) {
+            // calcolo dell'id del processore a cui spedire la somma locale: me - DIST
+			sendTo=me - potenze[i];
+            tag = sendTo;
+            MPI_Send(w, m, MPI_DOUBLE, sendTo, tag, comm);
+        } 
+        // Se il resto e' uguale a 0, il processore me riceve
+        else if (resto == 0) {
+            // ricevo da me + DIST
+			recvBy=me + potenze[i];
+            tag = me;
+            MPI_Recv(tmp, m, MPI_DOUBLE, recvBy, tag, comm, &info);
+
+            // calcolo della somma parziale solo nel ricevente
+            for (int j = 0; j < m; j++) 
+                w[j] += tmp[j];
+        }
+    }
+
+    if(verbose && n < 11 && m < 11){ 
+        printf("local_w: ");
+        for (int i = 0; i < m; i++) 
+            printf("%.4f ", w[i]);
         printf("\n");
     }
 }
