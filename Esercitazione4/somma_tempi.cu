@@ -1,5 +1,5 @@
 /*
-Programma d'esempio scritto dalla prof.
+Programma d'esempio scritto dalla prof. Calcola la somma di due array sia in CPU che in GPU e confronta i tempi di esecuzione.
 */
 #include <assert.h>
 #include <stdio.h>
