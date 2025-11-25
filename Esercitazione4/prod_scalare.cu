@@ -1,6 +1,10 @@
 /*
-	Eseguire: pip install git+https://github.com/andreinechaev/nvcc4jupyter.git
-	Si consiglia di usare CUDA Toolkit fino a 12.6
+Prodotto scalare di due vettori
+1. La GPU calcola il prodotto elemento per elemento;
+2. La CPU somma tutti i prodotti calcolati dalla GPU, producendo uno scalare.
+
+Eseguire: pip install git+https://github.com/andreinechaev/nvcc4jupyter.git
+Si consiglia di usare CUDA Toolkit fino a 12.6
 */ 
 #include <assert.h>
 #include <stdio.h>
@@ -10,17 +14,17 @@
 #include <string.h>
 #include <math.h>
 
-void sommaCPU(float *a, float *b, float *c, int n);
-__global__ void sommaGPU(float* a, float* b, float* c, int n);
+float sommaCPU(float *a, int n);
+__global__ void prodottoGPU(float* a, float* b, float* c, int n);
 
 int main (){
-    float *h_u, *h_v, *h_res, *h_res2;
+    float *h_u, *h_v, *h_res, h_res2;
     float *d_u, *d_v, *d_res;
     int N, nBytes;
     dim3 gridDim, blockDim;
     float elapsed; // calcolo del tempo
 
-    printf("***\t SOMMA DI DUE ARRAY \t***\n");
+    printf("***\t PRODOTTO SCALARE DI DUE VETTORI \t***\n");
 	printf("Inserisci N: ");
     scanf(" %d",&N);
 
@@ -28,7 +32,6 @@ int main (){
     h_u = (float *)malloc(nBytes);
     h_v = (float *)malloc(nBytes);
     h_res = (float *)malloc(nBytes);
-    h_res2 = (float *)malloc(nBytes);
     cudaMalloc((void **) &d_u, nBytes);
     cudaMalloc((void **) &d_v, nBytes);
     cudaMalloc((void **) &d_res, nBytes);
@@ -63,7 +66,7 @@ int main (){
 	cudaEventRecord(start);
 
     //invocazione del kernel
-	sommaGPU<<<gridDim, blockDim>>>(d_u, d_v, d_res, N);
+	prodottoGPU<<<gridDim, blockDim>>>(d_u, d_v, d_res, N);
 
 	cudaEventRecord(stop);
     // assicura che tutti siano arrivati all'evento stop prima di registrare il tempo
@@ -85,7 +88,7 @@ int main (){
 	cudaEventRecord(start);
 
 	// calcolo somma seriale
-	sommaCPU(h_u, h_v, h_res2, N);
+	h_res2 = sommaCPU(h_res, N);
 
 	cudaEventRecord(stop);
 	cudaEventSynchronize(stop); // assicura che tutti siano arrivati all'evento stop prima di registrare il tempo
@@ -94,9 +97,6 @@ int main (){
 	cudaEventDestroy(stop);
 	printf("tempo CPU=%f\n", elapsed);
 
-    for (int i = 0; i < N; i++)
-        assert(h_res[i] == h_res2[i]);
-
 	if (N < 20) {
         // stampa vettore u
 		for(int i = 0; i < N; i++)
@@ -104,28 +104,33 @@ int main (){
 		printf("\n");
         // stampa vettore v
 		for(int i = 0; i < N; i++)
-			printf("h_v[%d]=%6.2f ",i, h_v[i]);
-        // stampa vettore res
+			printf("h_v[%d]=%6.2f ",i, h_v[i]);    
 		printf("\n");
+		// stampa vettore res
 		for(int i = 0; i < N; i++)
-			printf("h_res[%d]=%6.2f ",i, h_res[i]);
+			printf("h_res[%d]=%6.2f ", i, h_res[i]);
 		printf("\n");
 	}
-	free(h_u); free(h_v); free(h_res); free(h_res2);
+
+	printf("Risultato: %6.2f\n", h_res2);
+
+	free(h_u); free(h_v); free(h_res);
 	cudaFree(d_u); cudaFree(d_v); cudaFree(d_res);
 	return 0;
 }
 
-// Seriale - combina le somme parziali calcolate dai vari thread
-void sommaCPU(float *a, float *b, float *c, int n){
-	for(int i = 0; i < n; i++)
-		c[i] = a[i] + b[i];
+// Seriale - somma tutti i prodotti calcolati dalla GPU, producendo uno scalare
+float sommaCPU(float *a, int n){
+	float sum = 0;
+    for(int i=0; i < n; i++)
+        sum += a[i];
+    return sum;
 }
 
-// Parallelo
-__global__ void sommaGPU (float* a, float * b, float* c, int n) {
+// Parallelo - La GPU calcola il prodotto elemento per elemento
+__global__ void prodottoGPU (float* a, float * b, float* c, int n) {
 	int index = threadIdx.x + blockIdx.x * blockDim.x;
 	if(index < n)
-		c[index] = a[index] + b[index];
+		c[index] = a[index] * b[index];
 }
 
