@@ -8,11 +8,8 @@ Si consiglia di usare CUDA Toolkit fino a 12.6
 */ 
 #include <assert.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <cuda_runtime.h>
+#include<cuda.h>
 #include <time.h>
-#include <string.h>
-#include <math.h>
 
 float sommaCPU(float *a, int n);
 __global__ void prodottoGPU(float* a, float* b, float* c, int n);
