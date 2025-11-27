@@ -3,3 +3,8 @@ nvcc programma.cuda
 
 Eseguire:
 ./a.exe
+
+Valutazione delle specifiche della GPU:
+ncu --query-metrics
+
+Ma consiglio di usare hardwareLimits.cu

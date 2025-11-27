@@ -1,3 +1,15 @@
+/*
+Prodotto scalare di due vettori - Strategia 3
+La GPU calcola le somme parziali e le combina secondo una strategia ottimizzata.
+Non viene generata divergenza tra i thread durante la riduzione.
+
+Dall'analisi dell'hardware della GPU, è emerso che:
+- Max threads per SM = 1536
+- Max blocks per SM = 16
+
+Ponendo la blockDim.x = 512 (equivalente al numero di thread per blocco):
+- Numero di blocchi per SM = 1536 / 512 = 3 con una occupancy del 100%
+*/
 #include <assert.h>
 #include <stdio.h>
 #include<cuda.h>
@@ -19,7 +31,7 @@ int main() {
     scanf("%d", &N);
 
     // Definisco la configurazione della griglia
-    blockDim.x = 128; // 128 thread in una sola riga
+    blockDim.x = 512; // 128 thread in una sola riga
     gridDim.x = N / blockDim.x + (( N % blockDim.x)== 0? 0 : 1);
 
     // Dimensione dei vetori di input
