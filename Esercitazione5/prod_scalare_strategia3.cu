@@ -4,28 +4,38 @@
 #include <time.h>
 
 float sommaCPU(float *, int);
-__global__ void dotProdGPU(float *, const float *, const float *, int);
+__global__ void ProdGPU_Reduction(float *, const float *, const float *, int N);
 
 int main() {
     float *h_a, *h_b, *h_v, h_res;
     float *d_a, *d_b, *d_v;
-    int N, nBytes, i; 
+    int N, nBytes, nBytesV, i; 
     dim3 gridDim, blockDim;
+    size_t sBytes;
     float elapsed;
 
-    printf("***\t PRODOTTO SCALARE STRATEGIA 1 \t***\n");
+    printf("***\t PRODOTTO SCALARE STRATEGIA 2 \t***\n");
     printf("Inserire la dimensione degli array: ");
     scanf("%d", &N);
 
+    // Definisco la configurazione della griglia
+    blockDim.x = 128; // 128 thread in una sola riga
+    gridDim.x = N / blockDim.x + (( N % blockDim.x)== 0? 0 : 1);
+
+    // Dimensione dei vetori di input
     nBytes = N * sizeof(float);
+    // Dimensione del vettore delle somme parziali (uno per blocco)
+    nBytesV = gridDim.x * sizeof(float);
+    // dimensione della shared memory dinamica: un float per ogni thread del blocco
+    sBytes = blockDim.x * sizeof(float);
 
     // alloco i vettori in host e device
     h_a = (float*)malloc(nBytes);
     h_b = (float*)malloc(nBytes);
-    h_v = (float*)malloc(nBytes);
+    h_v = (float*)malloc(nBytesV);
     cudaMalloc((void**)&d_a, nBytes);
     cudaMalloc((void**)&d_b, nBytes);
-    cudaMalloc((void**)&d_v, nBytes);
+    cudaMalloc((void**)&d_v, nBytesV);
 
     // Inizializzazione vettori a e b (assumono valore casuale tra -2 e 2)
     srand((unsigned)time(NULL));
@@ -39,13 +49,9 @@ int main() {
     cudaMemcpy(d_b, h_b, nBytes, cudaMemcpyHostToDevice);
 
     // Inizializzo il vettore dei risultati a zero
-    memset(h_v, 0, nBytes);
-    cudaMemset(d_v, 0, nBytes);
-
-    // Definisco la configurazione della griglia
-    blockDim.x = 128; // 128 thread in una sola riga
-    gridDim.x = N / blockDim.x + (( N % blockDim.x)== 0? 0 : 1);
-
+    memset(h_v, 0, nBytesV);
+    cudaMemset(d_v, 0, nBytesV);
+    
     // calcolo del tempo
     cudaEvent_t start, stop;
 	cudaEventCreate(&start);
@@ -53,8 +59,8 @@ int main() {
 
 	cudaEventRecord(start);
 
-    // lancio del kernel
-    dotProdGPU<<<gridDim, blockDim>>>(d_v, d_a, d_b, N);
+    // lancio del kernel, viene inclusa anche la dimensione della shared memory dinamica
+    ProdGPU_Reduction<<<gridDim, blockDim, sBytes>>>(d_v, d_a, d_b, N);
 
     // viene calcolato il tempo di fine esecuzione
     cudaEventRecord(stop);
@@ -69,8 +75,8 @@ int main() {
 	printf("tempo GPU=%f\n", elapsed);
 
     // copio il vettore dei risultati dal device all'host
-    cudaMemcpy(h_v, d_v, nBytes, cudaMemcpyDeviceToHost);
-    h_res = sommaCPU(h_v, N);
+    cudaMemcpy(h_v, d_v, nBytesV, cudaMemcpyDeviceToHost);
+    h_res = sommaCPU(h_v, gridDim.x);
 
     if(N < 20){
         printf("Vettore A: ");
@@ -82,7 +88,7 @@ int main() {
             printf("%.2f ", h_b[i]);
         }
         printf("\nVettore V: ");
-        for(i = 0; i < N; i++) {
+        for(i = 0; i < gridDim.x; i++) {
             printf("%.2f ", h_v[i]);
         }
         printf("\n");
@@ -104,11 +110,40 @@ float sommaCPU(float *a, int n){
     return sum;
 }
 
-__global__ void dotProdGPU(float *v, const float *a, const float *b, int N) {
+__global__ void ProdGPU_Reduction(float *v, const float *a, const float *b, int N) {
+    int recvBy;
+    // nthrd sostinuisce nproc
+    int nthrd = blockDim.x;
+    // l'identificativo del thread nel blocco
+    int menum = threadIdx.x; 
+    
+    // Memoria condivisa dinamica
+    extern __shared__ float s[];
+    
     // indice globale del thread
     int idx = threadIdx.x + blockIdx.x * blockDim.x;
 
+    // Ogni thread calcola il prodotto delle sue componenti
+    float w = 0.0f;
     if (idx < N) {
-        v[idx] = a[idx] * b[idx];
+        w = a[idx] * b[idx];
+    }
+
+    // Carico il valore calcolato in memoria condivisa
+    s[threadIdx.x] = w;
+    __syncthreads(); // sincronizzo i thread del blocco
+
+    /* Riduzione in memoria condivisa - Strategia Ottimizzata per la somma */
+    for(int p = nthrd / 2; p > 0; p /= 2){
+        if(menum < p){
+            recvBy = menum + p;
+            s[menum] += s[recvBy];
+        }
+        __syncthreads();
+    }
+
+    // Dopo l'ultimo passo, il thread 0 del blocco ha la somma del blocco
+    if (threadIdx.x == 0) {
+        v[blockIdx.x] = s[0]; 
     }
 }

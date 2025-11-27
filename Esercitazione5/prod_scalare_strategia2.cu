@@ -20,7 +20,7 @@ int main() {
 
 
     // Definisco la configurazione della griglia
-    blockDim.x = 128;
+    blockDim.x = 128; // 128 thread in una sola riga
     gridDim.x = N / blockDim.x + (( N % blockDim.x)== 0? 0 : 1);
 
     // Dimensione dei vetori di input
