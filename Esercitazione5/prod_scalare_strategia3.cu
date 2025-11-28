@@ -26,7 +26,7 @@ int main() {
     size_t sBytes;
     float elapsed;
 
-    printf("***\t PRODOTTO SCALARE STRATEGIA 2 \t***\n");
+    printf("***\t PRODOTTO SCALARE STRATEGIA 3 \t***\n");
     printf("Inserire la dimensione degli array: ");
     scanf("%d", &N);
 
@@ -88,7 +88,20 @@ int main() {
 
     // copio il vettore dei risultati dal device all'host
     cudaMemcpy(h_v, d_v, nBytesV, cudaMemcpyDeviceToHost);
+
+    // calcolo su CPU
+	cudaEventCreate(&start);
+	cudaEventCreate(&stop);
+	cudaEventRecord(start);
+
     h_res = sommaCPU(h_v, gridDim.x);
+
+    cudaEventRecord(stop);
+	cudaEventSynchronize(stop); // assicura che tutti siano arrivati all'evento stop prima di registrare il tempo
+	cudaEventElapsedTime(&elapsed, start, stop);
+	cudaEventDestroy(start);
+	cudaEventDestroy(stop);
+	printf("tempo CPU=%f\n", elapsed);
 
     if(N < 20){
         printf("Vettore A: ");
