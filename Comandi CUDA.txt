@@ -1,6 +1,9 @@
 Compilare:
 nvcc programma.cuda
 
+Compilare con cuBLAS:
+nvcc programma.cu -lcublas
+
 Eseguire:
 ./a.exe
 
