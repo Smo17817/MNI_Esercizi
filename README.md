@@ -16,7 +16,8 @@ Repository dedicato agli esercizi del corso **Metodi Numerici per l’Informatic
 - `Esercitazione4/` – Introduzione al Prodotto Scalare su GPU
 - `Esercitazione5/` – Prodotto Scalare su GPU (Strategia 1, 2 e 3)
 - `Esercitazione6/` – Prodotto Scalare con cuBLAS
-- `Comandi CUDA.txt` –  Comandi per compilazione ed esecuzione di programmi CUDA-C in locale
+- `Esercitazione7/` – Model-Based Recommender System
+- `Comandi CUDA.txt` – Comandi per compilazione ed esecuzione di programmi CUDA-C in locale
 - `Comandi MYM.txt` – Comandi per compilazione ed esecuzione di programmi MPI
 
 ## 🛠️ Requisiti e Compilazione
