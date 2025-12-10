@@ -13,7 +13,7 @@ import scipy.linalg as sla
 # | season 5 | 5    | 4     | 4      | 5     |
 # | season 6 | 5    | 4     | 5      | 5     |
 
-k = 2
+k = int(input("Inserisci il valore di k (compreso tra 2 e 4): "))
 
 seasons = [1,2,3,4,5,6]
 users = ['Ryne', 'Erin', 'Nathan', 'Pete']
