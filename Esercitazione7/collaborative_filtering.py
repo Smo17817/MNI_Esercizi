@@ -1,36 +1,20 @@
 
-#!/usr/bin/env python
-# Implementation of collaborative filtering recommendation engine
-
-
 from recommendation_data import dataset
 from math import sqrt
 import numpy as np
 import pandas as pd
 
 # calcola il punteggio di similarità tra due utenti utilizzando la distanza euclidea
-def similarity_score(person1,person2):
+def euclidean_similarity(person1, person2):
+	both_viewed = [item for item in dataset[person1] if item in dataset[person2]]
+
+	if len(both_viewed) == 0:
+		return 0
 	
-	# contiene gli elementi valutati da entrambi gli utenti
-	both_viewed = {}
+	euclidean_distance = sqrt(sum([pow(dataset[person1][item] - dataset [person2][item], 2) for item in both_viewed]))
 
-	for item in dataset[person1]:
-		if item in dataset[person2]:
-			both_viewed[item] = 1
-
-		# controlla se non ci sono elementi valutati in comune
-		if len(both_viewed) == 0:
-			return 0
-
-		# calcolo della distanza euclidea tra le valutazioni dei due utenti
-		sum_of_eclidean_distance = []	
-
-		for item in dataset[person1]:
-			if item in dataset[person2]:
-				sum_of_eclidean_distance.append(pow(dataset[person1][item] - dataset[person2][item],2))
-		sum_of_eclidean_distance = sum(sum_of_eclidean_distance)
-
-		return 1/(1+sqrt(sum_of_eclidean_distance))
+	# la similarità euclidea è pari a 1 / (1 + distanza euclidea)
+	return 1 / (1 + euclidean_distance)
 
 # calcola la Correlazione di Pearson tra due utenti
 def pearson_correlation(person1,person2):
@@ -114,29 +98,50 @@ def user_reommendations(person, correlation=pearson_correlation):
 	# returns the recommended items
 	recommendataions_list = [recommend_item for score,recommend_item in rankings]
 	return recommendataions_list
-	
-"""
-# crea un dizionaro per verificare quali item sono simili ad un dato item
-def calculateSimilarItems(prefs,n=10):   
-        result={}
-        # Invert the preference matrix to be item-centric
-        itemPrefs=transformPrefs(prefs)
-        c=0
-        for item in itemPrefs:
-                # incrementa lo stato di avanzamento
-                c+=1
-                if c%100==0: print("%d / %d" % (c,len(itemPrefs)))
-                # cerca i n item più simili a questo item
-                scores=topMatches(itemPrefs,item,n=n,similarity=sim_distance)
-                result[item]=scores
-        return result
-"""
-def create_recommendation_table(person, correlation=pearson_correlation):
+
+def prediction_function1(person, item, total, sim_sum):
+	return total / sim_sum
+
+def prediction_function2(person, item, total, sim_sum):
+	# media di tutti i rating di person
+    mu_k = np.mean(list(dataset[person].values()))
+
+    numerator = 0
+    denominator = 0
+
+    # scorri tutti gli utenti j che hanno valutato l'item
+    for other in dataset:
+        # salta se l'utente è se stesso o se non ha valutato l'item
+        if other == person  or item not in dataset[other]:
+            continue  
+
+        # similarità tra person e other (Pearson)
+        sim = pearson_correlation(person, other)
+        # si ignorano similarità negative o nulle
+        if sim <= 0:
+            continue  
+
+        # media dell'utente j
+        mu_j = np.mean(list(dataset[other].values()))
+
+        # aggiorno numeratore e denominatore
+        numerator += sim * (dataset[other][item] - mu_j)
+        denominator += sim
+
+    # se il denominatore è 0, non si può stimare
+    if denominator == 0:
+        return 'Error'
+
+    # formula finale
+    return mu_k + (numerator / denominator)
+
+
+def create_recommendation_table(person, correlation=pearson_correlation, prediction_function=prediction_function1):
     # calcola i film raccomandati per l'utente
     recommended_items = user_reommendations(person, correlation)
 
     # Critici con similarità > 0
-    critics = []
+    critics = []  
     sims = {}
 
     for other in dataset:
@@ -144,7 +149,7 @@ def create_recommendation_table(person, correlation=pearson_correlation):
         if other == person:
             continue
 
-        sim = pearson_correlation(person, other)
+        sim = correlation(person, other)
 		# ignora punteggi di similarità zero o negativi
         if sim <= 0:
             continue  
@@ -210,7 +215,7 @@ def create_recommendation_table(person, correlation=pearson_correlation):
 
         # Predizione: Total / Sim.Sum (solo se sim_sum != 0)
         if sim_sum != 0: 
-            pred = total / sim_sum
+            pred = prediction_function(person, item, total, sim_sum)
             pred_row[item] = ''
             pred_row[sx_col] = round(pred, 2)
         else:
@@ -224,8 +229,12 @@ def create_recommendation_table(person, correlation=pearson_correlation):
     )
 
     return df
-print("\nRecommendation table for Toby using Pearson Correlation:")	
-print(create_recommendation_table('Toby', correlation=pearson_correlation))
 
-print("\nRecommendation table for Toby using Euclidean Distance:")	
-print(create_recommendation_table('Toby', correlation=similarity_score))
+print("\nRecommendation table for Toby using Pearson Correlation:")	
+print(create_recommendation_table('Toby', correlation=pearson_correlation, prediction_function=prediction_function1))
+
+print("\nRecommendation table for Toby using Euclidean Similarity:")	
+print(create_recommendation_table('Toby', correlation=euclidean_similarity, prediction_function=prediction_function1))
+
+print("\nRecommendation table for Toby using another prediction function:")	
+print(create_recommendation_table('Toby', correlation=pearson_correlation, prediction_function=prediction_function2))
