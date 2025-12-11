@@ -2,3 +2,5 @@
 *.exe
 *.exp
 *.lib
+
+__pycache__
